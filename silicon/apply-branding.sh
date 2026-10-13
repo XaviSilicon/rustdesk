@@ -35,6 +35,25 @@ replace "$CFG" 'RwLock::new("RustDesk".to_owned())' "RwLock::new(\"$APP_NAME\".t
 replace "$CFG" 'pub const RENDEZVOUS_SERVERS: &[&str] = &["rs-ny.rustdesk.com"];' "pub const RENDEZVOUS_SERVERS: &[&str] = &[\"$SERVER\"];"
 replace "$CFG" 'pub const RS_PUB_KEY: &str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw=";' "pub const RS_PUB_KEY: &str = \"$KEY\";"
 
+# VARIANTE=soporte  -> ejecutable solo para RECIBIR conexiones (tipo "QuickSupport"):
+#                      sin botón Instalar, sin poder conectarse a otros, sin ajustes de red
+#                      (no se ve ni se puede cambiar el servidor ni la clave).
+# VARIANTE=completo -> cliente normal (instalable, para conectarte tú a los equipos).
+VARIANTE="${VARIANTE:-soporte}"
+echo "==> Variante: $VARIANTE"
+if [ "$VARIANTE" = "soporte" ]; then
+  # Opciones "duras": no se pueden cambiar desde la interfaz
+  replace "$CFG" \
+    'pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();' \
+    'pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new([("conn-type", "incoming"), ("disable-installation", "Y"), ("disable-settings", "Y"), ("disable-account", "Y"), ("disable-ab", "Y")].iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());'
+  # Opciones de interfaz: ocultar red/servidor/proxy, ayudas, y bloquear cambio de ID
+  replace "$CFG" \
+    'pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();' \
+    'pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new([("hide-network-settings", "Y"), ("hide-server-settings", "Y"), ("hide-proxy-settings", "Y"), ("hide-websocket-settings", "Y"), ("hide-help-cards", "Y"), ("disable-change-id", "Y")].iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());'
+elif [ "$VARIANTE" != "completo" ]; then
+  echo "ERROR: VARIANTE debe ser 'soporte' o 'completo'"; exit 1
+fi
+
 echo "==> Metadatos del .exe (Propiedades -> Detalles)"
 replace Cargo.toml 'ProductName = "RustDesk"' "ProductName = \"$APP_NAME\""
 replace Cargo.toml 'FileDescription = "RustDesk Remote Desktop"' "FileDescription = \"$APP_NAME\""
