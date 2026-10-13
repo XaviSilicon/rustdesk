@@ -1,10 +1,16 @@
 # Compila el cliente "Silicon-Remote" (RustDesk con marca propia) para Windows x64.
-# Ejecutar a mano: pestaña Actions -> "Silicon-Remote Windows" -> Run workflow.
+# Ejecutar a mano: pestaña Actions -> "Silicon-Remote Windows" -> Run workflow (elige variante).
 # La configuración de marca está en silicon/ (apply-branding.sh, logo.png, icon.ico...).
 name: Silicon-Remote Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      variante:
+        description: "soporte = solo recibir conexiones, portable, sin ajustes de servidor | completo = cliente normal instalable"
+        type: choice
+        options: [soporte, completo]
+        default: soporte
 
 permissions:
   contents: write
@@ -86,6 +92,8 @@ jobs:
 
       - name: Aplicar marca Silicon-Remote (nombre, servidor, clave, iconos, logo)
         shell: bash
+        env:
+          VARIANTE: ${{ inputs.variante }}
         run: bash silicon/apply-branding.sh
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -287,13 +295,14 @@ jobs:
       - name: Renombrar a Silicon-Remote
         shell: bash
         run: |
-          mv ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe ./SignOutput/Silicon-Remote-${{ env.VERSION }}.exe
+          if [ "${{ inputs.variante }}" = "soporte" ]; then NAME=Silicon-Remote-Soporte; else NAME=Silicon-Remote; fi
+          mv ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe ./SignOutput/$NAME-${{ env.VERSION }}.exe
           ls -l ./SignOutput
 
       - name: Subir ejecutable (artefacto)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: Silicon-Remote-windows-x64
+          name: Silicon-Remote-${{ inputs.variante }}-windows-x64
           path: ./SignOutput/Silicon-Remote-*.exe
           if-no-files-found: error
 
